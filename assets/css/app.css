@@ -113,3 +113,17 @@ select:focus-visible {
     margin-bottom: 2rem;
   }
 }
+
+/* Collapsible Card Chevrons */
+[data-bs-toggle="collapse"] .chevron-icon {
+  transition: transform 0.2s ease-in-out;
+  display: inline-block;
+}
+
+[data-bs-toggle="collapse"][aria-expanded="true"] .chevron-icon {
+  transform: rotate(180deg);
+}
+
+[data-bs-toggle="collapse"][aria-expanded="false"] .chevron-icon {
+  transform: rotate(0deg);
+}
