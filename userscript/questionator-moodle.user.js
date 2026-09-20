@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Questionator for Moodle
 // @namespace    https://github.com/erseco/questionator
-// @version      1.0.0
+// @version      1.1.0
 // @description  Answer Moodle quiz attempts directly using TypeSafe JEV and reference context.
-// @author       Ernesto Serrano
+// @author       erseco
 // @match        *://*/mod/quiz/attempt.php*
 // @icon         https://raw.githubusercontent.com/erseco/questionator/main/favicon.png
 // @grant        GM.xmlHttpRequest
@@ -25,6 +25,9 @@
   const STORAGE_KEY_SHOW_PROBS = 'questionator_show_probs';
   const STORAGE_KEY_HIGHLIGHT_LOW_CONF = 'questionator_highlight_low_conf';
   const STORAGE_KEY_CONF_THRESHOLD = 'questionator_conf_threshold';
+  const STORAGE_KEY_PANEL_OPEN = 'questionator_panel_open';
+  const STORAGE_KEY_POS_X = 'questionator_pos_x';
+  const STORAGE_KEY_POS_Y = 'questionator_pos_y';
 
   const DEFAULT_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
   const LOGO_URL = 'https://raw.githubusercontent.com/erseco/questionator/main/favicon.png';
@@ -55,7 +58,7 @@
   async function createFloatingUI() {
     const hostEl = document.createElement('div');
     hostEl.id = 'questionator-moodle-host';
-    hostEl.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 2147483647; font-family: system-ui, -apple-system, sans-serif;';
+    hostEl.style.cssText = 'position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 2147483647; font-family: system-ui, -apple-system, sans-serif;';
     document.body.appendChild(hostEl);
 
     const shadow = hostEl.attachShadow({ mode: 'open' });
@@ -67,6 +70,9 @@
       
       /* Floating Button */
       .fab-btn {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
         width: 52px;
         height: 52px;
         border-radius: 50%;
@@ -79,6 +85,7 @@
         justify-content: center;
         transition: transform 0.2s, box-shadow 0.2s;
         outline: none;
+        z-index: 2147483647;
       }
       .fab-btn:hover {
         transform: scale(1.08);
@@ -95,7 +102,7 @@
       .panel {
         position: fixed;
         bottom: 80px;
-        right: 20px;
+        left: 20px;
         width: 380px;
         max-width: calc(100vw - 40px);
         max-height: calc(100vh - 100px);
@@ -108,6 +115,7 @@
         flex-direction: column;
         overflow: hidden;
         animation: fadeIn 0.2s ease-out;
+        z-index: 2147483648;
       }
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
@@ -117,21 +125,33 @@
       .panel-header {
         background: #f8f9fa;
         border-bottom: 1px solid #dee2e6;
-        padding: 12px 16px;
+        padding: 10px 14px;
         display: flex;
         align-items: center;
         justify-content: space-between;
+        cursor: grab;
+        user-select: none;
+      }
+      .panel-header:active {
+        cursor: grabbing;
       }
       .panel-title {
         display: flex;
         align-items: center;
         gap: 8px;
         font-weight: 700;
-        font-size: 15px;
+        font-size: 14px;
+        pointer-events: none;
+      }
+      .panel-title .drag-icon {
+        font-size: 16px;
+        color: #adb5bd;
+        margin-right: 2px;
+        letter-spacing: -2px;
       }
       .panel-title img {
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
         border-radius: 4px;
       }
       .close-btn {
@@ -141,6 +161,7 @@
         cursor: pointer;
         color: #6c757d;
         line-height: 1;
+        padding: 0 4px;
       }
       .close-btn:hover { color: #000; }
 
@@ -265,14 +286,31 @@
     const savedShowProbs = (await GM.getValue(STORAGE_KEY_SHOW_PROBS, true));
     const savedHighlightLow = (await GM.getValue(STORAGE_KEY_HIGHLIGHT_LOW_CONF, true));
     const savedThreshold = (await GM.getValue(STORAGE_KEY_CONF_THRESHOLD, 60));
+    const savedPanelOpen = (await GM.getValue(STORAGE_KEY_PANEL_OPEN, false));
+    const savedPosX = await GM.getValue(STORAGE_KEY_POS_X, null);
+    const savedPosY = await GM.getValue(STORAGE_KEY_POS_Y, null);
+
+    // Position panel: use saved coordinates or default to bottom-left
+    if (savedPosX !== null && savedPosY !== null) {
+      const clampedX = Math.max(0, Math.min(savedPosX, window.innerWidth - 380));
+      const clampedY = Math.max(0, Math.min(savedPosY, window.innerHeight - 200));
+      panel.style.left = `${clampedX}px`;
+      panel.style.top = `${clampedY}px`;
+      panel.style.bottom = 'auto';
+      panel.style.right = 'auto';
+    } else {
+      panel.style.bottom = '80px';
+      panel.style.left = '20px';
+    }
 
     panel.innerHTML = `
-      <div class="panel-header">
+      <div class="panel-header" title="Drag to move">
         <div class="panel-title">
+          <span class="drag-icon" title="Drag to move">⠿</span>
           <img src="${LOGO_URL}" alt="Q">
           <span>Questionator for Moodle</span>
         </div>
-        <button class="close-btn" id="btn-close">&times;</button>
+        <button class="close-btn" id="btn-close" title="Close">&times;</button>
       </div>
 
       <div class="panel-body">
@@ -350,6 +388,93 @@
     const btnCompress = shadow.getElementById('btn-compression-prompt');
     const statusBox = shadow.getElementById('status-box');
 
+    // Restore open state: if open on previous page, keep it open and scan
+    if (savedPanelOpen) {
+      panel.style.display = 'flex';
+      scanMoodleQuestions(statusBox);
+    } else {
+      panel.style.display = 'none';
+    }
+
+    // Draggable Panel functionality
+    const panelHeader = shadow.querySelector('.panel-header');
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialPanelLeft = 0;
+    let initialPanelTop = 0;
+
+    function startDrag(clientX, clientY, target) {
+      if (target && target.closest && target.closest('.close-btn')) return;
+      isDragging = true;
+      dragStartX = clientX;
+      dragStartY = clientY;
+      const rect = panel.getBoundingClientRect();
+      initialPanelLeft = rect.left;
+      initialPanelTop = rect.top;
+      panelHeader.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    }
+
+    function moveDrag(clientX, clientY) {
+      if (!isDragging) return;
+      const dx = clientX - dragStartX;
+      const dy = clientY - dragStartY;
+      const rect = panel.getBoundingClientRect();
+
+      let newLeft = initialPanelLeft + dx;
+      let newTop = initialPanelTop + dy;
+
+      const maxLeft = Math.max(0, window.innerWidth - rect.width);
+      const maxTop = Math.max(0, window.innerHeight - rect.height);
+      newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+      newTop = Math.max(0, Math.min(newTop, maxTop));
+
+      panel.style.left = `${newLeft}px`;
+      panel.style.top = `${newTop}px`;
+      panel.style.bottom = 'auto';
+      panel.style.right = 'auto';
+    }
+
+    function stopDrag() {
+      if (!isDragging) return;
+      isDragging = false;
+      panelHeader.style.cursor = 'grab';
+      document.body.style.userSelect = '';
+
+      const rect = panel.getBoundingClientRect();
+      GM.setValue(STORAGE_KEY_POS_X, Math.round(rect.left));
+      GM.setValue(STORAGE_KEY_POS_Y, Math.round(rect.top));
+    }
+
+    panelHeader.addEventListener('mousedown', (e) => {
+      startDrag(e.clientX, e.clientY, e.target);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      moveDrag(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mouseup', () => {
+      stopDrag();
+    });
+
+    panelHeader.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        startDrag(e.touches[0].clientX, e.touches[0].clientY, e.target);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches.length === 1) {
+        moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      stopDrag();
+    });
+
     function updateContextStats() {
       const text = inputContext.value;
       const chars = text.length;
@@ -382,14 +507,17 @@
     });
 
     fab.addEventListener('click', () => {
-      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
-      if (panel.style.display === 'flex') {
+      const willOpen = panel.style.display === 'none';
+      panel.style.display = willOpen ? 'flex' : 'none';
+      GM.setValue(STORAGE_KEY_PANEL_OPEN, willOpen);
+      if (willOpen) {
         scanMoodleQuestions(statusBox);
       }
     });
 
     btnClose.addEventListener('click', () => {
       panel.style.display = 'none';
+      GM.setValue(STORAGE_KEY_PANEL_OPEN, false);
     });
 
     btnScan.addEventListener('click', () => {
