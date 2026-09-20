@@ -9,21 +9,47 @@
 
 const TARGET_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
 
-function corsHeaders(origin = "*") {
+// Allowed origins: strictly the GitHub Pages deployment and local development
+const ALLOWED_ORIGINS = [
+  "https://erseco.github.io",
+];
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Allow local development (e.g. http://localhost:8000 or http://127.0.0.1:8000)
+  if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+    return true;
+  }
+  return false;
+}
+
+function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Typesafe-Organization-ID",
     "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
   };
 }
 
 export default {
   async fetch(request, env) {
-    const origin = request.headers.get("Origin") || "*";
+    const origin = request.headers.get("Origin");
 
     // Handle preflight OPTIONS request
     if (request.method === "OPTIONS") {
+      if (!isOriginAllowed(origin)) {
+        return new Response(
+          JSON.stringify({ error: "Disallowed CORS origin. Only GitHub Pages (https://erseco.github.io) is permitted." }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
       return new Response(null, {
         status: 204,
         headers: corsHeaders(origin),
@@ -37,14 +63,26 @@ export default {
           service: "TypeSafe JEV CORS Proxy Worker",
           status: "ready",
           target: TARGET_ENDPOINT,
+          allowed_origin: "https://erseco.github.io",
           usage: "Send POST requests with Authorization: Bearer <key> and Content-Type: application/json."
         }, null, 2),
         {
           status: 200,
           headers: {
             "Content-Type": "application/json",
-            ...corsHeaders(origin)
+            ...(origin && isOriginAllowed(origin) ? corsHeaders(origin) : {})
           }
+        }
+      );
+    }
+
+    // Check origin for POST requests
+    if (!isOriginAllowed(origin)) {
+      return new Response(
+        JSON.stringify({ error: "Disallowed origin. Only https://erseco.github.io and local development are permitted." }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" }
         }
       );
     }
