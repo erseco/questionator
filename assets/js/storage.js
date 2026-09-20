@@ -6,6 +6,49 @@
 const STORAGE_KEY_API_KEY = 'questionator_api_key';
 const STORAGE_KEY_REMEMBER_KEY = 'questionator_remember_key';
 const STORAGE_KEY_THEME = 'questionator_theme';
+const STORAGE_KEY_ENDPOINT = 'questionator_custom_endpoint';
+
+export const DEFAULT_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
+
+/**
+ * Loads the saved custom endpoint URL, or returns the default.
+ * @returns {string}
+ */
+export function loadSavedEndpoint() {
+  try {
+    return localStorage.getItem(STORAGE_KEY_ENDPOINT) || DEFAULT_ENDPOINT;
+  } catch {
+    return DEFAULT_ENDPOINT;
+  }
+}
+
+/**
+ * Saves a custom endpoint URL.
+ * @param {string} endpoint
+ */
+export function saveEndpoint(endpoint) {
+  try {
+    const clean = (endpoint || '').trim();
+    if (clean && clean !== DEFAULT_ENDPOINT) {
+      localStorage.setItem(STORAGE_KEY_ENDPOINT, clean);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_ENDPOINT);
+    }
+  } catch {
+    // Storage access might be restricted
+  }
+}
+
+/**
+ * Resets the endpoint URL to default.
+ */
+export function resetSavedEndpoint() {
+  try {
+    localStorage.removeItem(STORAGE_KEY_ENDPOINT);
+  } catch {
+    // Storage access might be restricted
+  }
+}
 
 /**
  * Checks if the user opted to remember the API key on this device.

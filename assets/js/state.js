@@ -3,11 +3,12 @@
  * Single source of truth for the application.
  */
 
-import { loadSavedApiKey, isRememberApiKeyEnabled } from './storage.js';
+import { loadSavedApiKey, isRememberApiKeyEnabled, loadSavedEndpoint } from './storage.js';
 
 export const state = {
   apiKey: loadSavedApiKey(),
   rememberApiKey: isRememberApiKeyEnabled(),
+  endpointUrl: loadSavedEndpoint(),
   documents: [],
   rawQuestionnaire: '',
   questions: [],

@@ -8,7 +8,7 @@
 
 import { formatQuestionsForJev } from './question-parser.js';
 
-const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
+export const DEFAULT_JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 const DEFAULT_MODEL = 'jev-latest';
 const MAX_RETRIES = 2;
 const BASE_RETRY_DELAY_MS = 1000;
@@ -34,6 +34,7 @@ export class JevError extends Error {
  * @param {string} params.apiKey - TypeSafe API key (Bearer token).
  * @param {Array<{ name: string, content: string }>} params.documents - Reference documents.
  * @param {Array<object>} params.questions - Parsed question objects.
+ * @param {string} [params.endpointUrl] - API endpoint URL (defaults to official TypeSafe System One).
  * @param {string} [params.guidance] - Optional prompt guidance.
  * @param {AbortSignal} [params.signal] - AbortSignal for request cancellation.
  * @returns {Promise<{
@@ -49,9 +50,11 @@ export async function evaluateQuestionsWithJev({
   apiKey,
   documents,
   questions,
+  endpointUrl,
   guidance,
   signal
 }) {
+  const targetEndpoint = (endpointUrl || '').trim() || DEFAULT_JEV_ENDPOINT;
   // Input validation
   const cleanKey = (apiKey || '').trim();
   if (!cleanKey) {
@@ -90,7 +93,7 @@ export async function evaluateQuestionsWithJev({
 
   while (attempt <= MAX_RETRIES) {
     try {
-      response = await fetch(JEV_ENDPOINT, {
+      response = await fetch(targetEndpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${cleanKey}`,

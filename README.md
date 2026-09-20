@@ -125,9 +125,9 @@ To obtain an API key:
 > TypeSafe's API endpoint (`https://api.typesafe.ai/v1/systemone`) currently enforces an origin check that rejects preflight `OPTIONS` requests from web browsers (returning `400 Disallowed CORS origin`).
 >
 > In accordance with our core privacy principles:
-> 1. Questionator **does not** route your data through unauthorized third-party CORS proxies (`cors-anywhere`, etc.) or custom relay backends.
+> 1. Questionator **does not** route your data through unauthorized third-party CORS proxies (`cors-anywhere`, etc.) or custom relay backends by default.
 > 2. The transport client in `assets/js/jev-client.js` detects this network/preflight failure cleanly and presents an honest explanation.
-> 3. Once TypeSafe enables CORS support for browser applications or provides a browser-accessible gateway, Questionator will communicate immediately without architectural changes.
+> 3. **Self-Hosted Proxy Option:** For users who wish to use Questionator today without waiting for TypeSafe to update their CORS policy, a minimal, transparent Cloudflare Worker script is provided in [`scripts/typesafe-proxy-worker.js`](scripts/typesafe-proxy-worker.js). You can deploy this to your own Cloudflare Workers account and enter your worker URL in Questionator's **API Endpoint** setting.
 
 ---
 
@@ -193,13 +193,15 @@ questionator/
 │   └── js/
 │       ├── app.js              # Main application controller
 │       ├── state.js            # Central reactive application state
-│       ├── storage.js          # Local storage for opt-in key and theme
+│       ├── storage.js          # Local storage for opt-in key, endpoint, and theme
 │       ├── files.js            # Client-side multi-format file extraction
 │       ├── pdf.js              # PDF.js text layer extraction & progress
 │       ├── question-parser.js  # Pure questionnaire parsing & JEV formatting
 │       ├── jev-client.js       # Isolated TypeSafe JEV transport & retry logic
 │       ├── results.js          # Answer cards & probability distribution UI
 │       └── utils.js            # HTML escaping, formatting, and clipboard
+├── scripts/
+│   └── typesafe-proxy-worker.js # Self-hosted Cloudflare Worker CORS proxy
 └── test/
     └── question-parser.test.js # Test suite for the questionnaire parser
 ```

@@ -13,7 +13,11 @@ import {
   saveApiKey,
   clearSavedApiKey,
   loadSavedTheme,
-  saveTheme
+  saveTheme,
+  loadSavedEndpoint,
+  saveEndpoint,
+  resetSavedEndpoint,
+  DEFAULT_ENDPOINT
 } from './storage.js';
 import { escapeHtml, formatNumber, formatBytes } from './utils.js';
 
@@ -22,6 +26,9 @@ let elApiKeyInput;
 let elToggleApiKeyBtn;
 let elRememberKeyCheck;
 let elClearSavedKeyBtn;
+
+let elEndpointInput;
+let elBtnResetEndpoint;
 
 let elDocDropZone;
 let elDocFileInput;
@@ -51,6 +58,7 @@ export function initApp() {
   cacheDOMElements();
   setupTheme();
   setupApiKeyEvents();
+  setupEndpointEvents();
   setupDocumentEvents();
   setupQuestionnaireEvents();
   setupEvaluationEvents();
@@ -67,6 +75,9 @@ function cacheDOMElements() {
   elToggleApiKeyBtn = document.getElementById('btn-toggle-api-key');
   elRememberKeyCheck = document.getElementById('remember-key-check');
   elClearSavedKeyBtn = document.getElementById('btn-clear-saved-key');
+
+  elEndpointInput = document.getElementById('endpoint-input');
+  elBtnResetEndpoint = document.getElementById('btn-reset-endpoint');
 
   elDocDropZone = document.getElementById('doc-drop-zone');
   elDocFileInput = document.getElementById('doc-file-input');
@@ -185,6 +196,29 @@ function updateClearKeyButtonVisibility() {
   if (elClearSavedKeyBtn) {
     const hasStored = Boolean(loadSavedApiKey());
     elClearSavedKeyBtn.style.display = hasStored ? 'inline-block' : 'none';
+  }
+}
+
+/**
+ * Custom API Endpoint Management
+ */
+function setupEndpointEvents() {
+  if (elEndpointInput) {
+    elEndpointInput.value = state.endpointUrl;
+    elEndpointInput.addEventListener('input', () => {
+      const val = elEndpointInput.value.trim();
+      state.endpointUrl = val || DEFAULT_ENDPOINT;
+      saveEndpoint(val);
+    });
+  }
+
+  if (elBtnResetEndpoint) {
+    elBtnResetEndpoint.addEventListener('click', () => {
+      resetSavedEndpoint();
+      state.endpointUrl = DEFAULT_ENDPOINT;
+      if (elEndpointInput) elEndpointInput.value = DEFAULT_ENDPOINT;
+      showAlert('API endpoint reset to official TypeSafe System One.', 'info');
+    });
   }
 }
 
@@ -667,6 +701,7 @@ async function handleAskJev() {
   try {
     const result = await evaluateQuestionsWithJev({
       apiKey: apiKey,
+      endpointUrl: state.endpointUrl,
       documents: state.documents,
       questions: validQuestions,
       signal: abortController.signal
