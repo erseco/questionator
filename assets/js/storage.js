@@ -8,6 +8,7 @@ const STORAGE_KEY_REMEMBER_KEY = 'questionator_remember_key';
 const STORAGE_KEY_THEME = 'questionator_theme';
 const STORAGE_KEY_ENDPOINT = 'questionator_custom_endpoint';
 
+const OLD_DEFAULT_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 export const DEFAULT_ENDPOINT = 'https://questionator-proxy.erseco.workers.dev';
 
 /**
@@ -16,7 +17,13 @@ export const DEFAULT_ENDPOINT = 'https://questionator-proxy.erseco.workers.dev';
  */
 export function loadSavedEndpoint() {
   try {
-    return localStorage.getItem(STORAGE_KEY_ENDPOINT) || DEFAULT_ENDPOINT;
+    const saved = localStorage.getItem(STORAGE_KEY_ENDPOINT);
+    // If not set, or if it was saved with the old default, migrate to the new default
+    if (!saved || saved === OLD_DEFAULT_ENDPOINT || saved === DEFAULT_ENDPOINT) {
+      localStorage.removeItem(STORAGE_KEY_ENDPOINT);
+      return DEFAULT_ENDPOINT;
+    }
+    return saved;
   } catch {
     return DEFAULT_ENDPOINT;
   }
