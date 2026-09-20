@@ -7,6 +7,8 @@
 
 **Live Application:** [https://erseco.github.io/questionator/](https://erseco.github.io/questionator/)
 
+![Questionator Screenshot](.github/screenshot.png)
+
 ---
 
 ## Overview
@@ -182,6 +184,7 @@ questionator/
 ├── AGENTS.md                   # Guidelines for AI coding agents
 ├── LICENSE                     # MIT License
 ├── .github/
+│   ├── screenshot.png          # Application screenshot
 │   └── workflows/
 │       └── pages.yml           # GitHub Actions workflow for GitHub Pages
 ├── assets/
