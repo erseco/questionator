@@ -1,10 +1,17 @@
 // ==UserScript==
 // @name         Questionator for Moodle
 // @namespace    https://github.com/erseco/questionator
-// @version      1.1.0
+// @version      1.1.1
 // @description  Answer Moodle quiz attempts directly using TypeSafe JEV and reference context.
 // @author       erseco
+// @match        *://*/*mod/quiz/attempt.php*
 // @match        *://*/mod/quiz/attempt.php*
+// @include      *://*/*mod/quiz/attempt.php*
+// @include      *://*/mod/quiz/attempt.php*
+// @include      *://*/*/mod/quiz/attempt.php*
+// @include      *://*/*/*/mod/quiz/attempt.php*
+// @include      *://*/*/*/*/mod/quiz/attempt.php*
+// @include      /^https?:\/\/.*\/mod\/quiz\/attempt\.php.*/
 // @icon         https://raw.githubusercontent.com/erseco/questionator/main/favicon.png
 // @grant        GM.xmlHttpRequest
 // @grant        GM.getValue
@@ -44,8 +51,10 @@
   }
 
   async function init() {
-    // Only run on quiz attempt pages
-    if (!window.location.pathname.includes('/mod/quiz/attempt.php')) {
+    // Only run on quiz attempt pages (works with root or subdirectory installations)
+    const isAttemptPath = window.location.pathname.includes('/mod/quiz/attempt.php');
+    const isAttemptBody = document.body && (document.body.id === 'page-mod-quiz-attempt' || document.body.classList.contains('path-mod-quiz'));
+    if (!isAttemptPath && !isAttemptBody) {
       return;
     }
 
@@ -555,8 +564,10 @@
       const qtextEl = block.querySelector('.qtext');
       const questionText = qtextEl ? qtextEl.innerText.trim() : `Question ${idx + 1}`;
 
-      // Find radio options
-      const radios = block.querySelectorAll('input[type="radio"]');
+      // Find radio options, excluding Moodle "clear choice" button
+      const radios = Array.from(block.querySelectorAll('input[type="radio"]'))
+        .filter(r => !r.closest('.qtype_multichoice_clearchoice') && r.value !== '-1');
+
       if (radios.length < 2) {
         return; // Only process multiple choice / single answer questions
       }
@@ -564,18 +575,34 @@
       const options = [];
       radios.forEach((radio, rIdx) => {
         const optId = String.fromCharCode(65 + rIdx); // A, B, C, D...
-        // Find corresponding label or answer text
+
+        // Find corresponding label or answer container
         let optText = '';
-        const label = block.querySelector(`label[for="${radio.id}"]`);
-        if (label) {
-          optText = label.innerText.trim();
-        } else {
-          const parentDiv = radio.closest('.d-flex, div');
-          optText = parentDiv ? parentDiv.innerText.trim() : `Option ${optId}`;
+        let targetEl = null;
+
+        if (radio.id) {
+          try {
+            targetEl = block.querySelector(`label[for="${CSS.escape(radio.id)}"]`);
+          } catch {
+            targetEl = block.querySelector(`label[for="${radio.id}"]`);
+          }
+        }
+        if (!targetEl && radio.getAttribute('aria-labelledby')) {
+          const labelledById = radio.getAttribute('aria-labelledby');
+          targetEl = document.getElementById(labelledById) || block.querySelector(`[id="${labelledById}"]`);
+        }
+        if (!targetEl) {
+          targetEl = radio.closest('.d-flex, .r0, .r1, div');
         }
 
-        // Clean leading prefix like "a. ", "b) "
-        optText = optText.replace(/^[a-zA-Z][\.\)\:\-]\s+/, '').trim();
+        if (targetEl) {
+          optText = targetEl.innerText.trim();
+        } else {
+          optText = `Option ${optId}`;
+        }
+
+        // Clean leading prefix like "a. ", "b) ", "1. ", etc.
+        optText = optText.replace(/^[a-zA-Z0-9][\.\)\:\-]\s+/, '').trim();
 
         options.push({
           id: optId,
@@ -584,9 +611,12 @@
         });
       });
 
+      const qnoEl = block.querySelector('.qno');
+      const questionNumber = qnoEl ? qnoEl.innerText.trim() : (idx + 1);
+
       detectedQuestions.push({
         id: `q${idx + 1}`,
-        number: idx + 1,
+        number: questionNumber,
         text: questionText,
         options: options,
         blockEl: block
