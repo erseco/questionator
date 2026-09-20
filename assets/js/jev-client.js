@@ -8,7 +8,7 @@
 
 import { formatQuestionsForJev } from './question-parser.js';
 
-export const DEFAULT_JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
+export const DEFAULT_JEV_ENDPOINT = 'https://questionator-proxy.erseco.workers.dev';
 const DEFAULT_MODEL = 'jev-latest';
 const MAX_RETRIES = 2;
 const BASE_RETRY_DELAY_MS = 1000;
