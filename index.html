@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Questionator — Context-powered quiz answers with JEV</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+
+  <!-- Content Security Policy: Strict client-only policy permitting only required CDNs and TypeSafe endpoint -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self' https://api.typesafe.ai; worker-src 'self' blob: https://cdnjs.cloudflare.com; base-uri 'self'; form-action 'self';">
+
+  <!-- Pinned CDN Stylesheets with Subresource Integrity -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
+  <link rel="stylesheet" href="./assets/css/app.css">
+</head>
+<body class="bg-body">
+
+  <!-- Header / Navigation -->
+  <header class="navbar navbar-expand-lg border-bottom bg-body-tertiary sticky-top">
+    <div class="container-fluid px-3 px-lg-4">
+      <a class="navbar-brand d-flex align-items-center gap-2 text-decoration-none" href="./">
+        <span class="brand-icon" aria-hidden="true">Q</span>
+        <div class="d-flex flex-column">
+          <span class="fw-bold fs-5 text-body-emphasis lh-1">Questionator</span>
+          <span class="text-muted extra-small d-none d-sm-inline" style="font-size: 0.75rem;">Context-powered quiz answers with JEV</span>
+        </div>
+      </a>
+
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <!-- Privacy Badge -->
+        <span class="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 py-2 px-2" title="All documents are processed locally in your browser.">
+          <i class="bi bi-shield-check"></i>
+          <span class="d-none d-md-inline">Private by design</span>
+        </span>
+
+        <!-- Theme Selector -->
+        <div class="input-group input-group-sm" style="width: auto;">
+          <label class="input-group-text bg-body" for="theme-select" aria-label="Appearance theme">
+            <i class="bi bi-circle-half"></i>
+          </label>
+          <select class="form-select form-select-sm" id="theme-select" aria-label="Appearance theme">
+            <option value="auto">Auto</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Alert Region -->
+  <aside class="container-fluid px-3 px-lg-4 pt-3" id="alert-container" aria-live="polite" aria-atomic="true"></aside>
+
+  <!-- Main Application Layout (3 Panels on Desktop) -->
+  <main class="container-fluid px-3 px-lg-4 py-3 flex-grow-1">
+    <div class="row g-4">
+
+      <!-- LEFT PANEL: Configuration & Context -->
+      <section class="col-12 col-lg-3 panel-column" aria-labelledby="heading-config">
+        <h2 class="visually-hidden" id="heading-config">Configuration & Reference Documents</h2>
+
+        <!-- API Key Card -->
+        <div class="card shadow-sm border mb-3">
+          <div class="card-header bg-body-tertiary d-flex align-items-center justify-content-between py-2">
+            <h3 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+              <i class="bi bi-key text-primary"></i>
+              <span>TypeSafe API Key</span>
+            </h3>
+            <a href="https://console.typesafe.ai" target="_blank" rel="noopener noreferrer" class="small text-decoration-none" title="Get key at console.typesafe.ai">
+              Get key <i class="bi bi-box-arrow-up-right" style="font-size: 0.75rem;"></i>
+            </a>
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <label for="api-key-input" class="form-label small fw-semibold text-muted mb-1">TypeSafe API key</label>
+              <div class="input-group input-group-sm">
+                <input type="password" class="form-control font-monospace" id="api-key-input" placeholder="ts_..." autocomplete="off" spellcheck="false">
+                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-api-key" title="Show API key" aria-label="Show API key">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Remember Opt-in -->
+            <div class="form-check form-switch small mb-2">
+              <input class="form-check-input" type="checkbox" role="switch" id="remember-key-check">
+              <label class="form-check-label text-muted" for="remember-key-check">Remember API key on this device</label>
+            </div>
+            <div class="extra-small text-muted mb-2" style="font-size: 0.75rem;">
+              Stored only in this browser's <code>localStorage</code>.
+            </div>
+
+            <!-- Clear Key Button -->
+            <button type="button" class="btn btn-outline-danger btn-sm w-100" id="btn-clear-saved-key" style="display: none;">
+              <i class="bi bi-trash me-1"></i> Clear stored key
+            </button>
+          </div>
+        </div>
+
+        <!-- Reference Documents Card -->
+        <div class="card shadow-sm border mb-3">
+          <div class="card-header bg-body-tertiary d-flex align-items-center justify-content-between py-2">
+            <h3 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+              <i class="bi bi-folder2-open text-primary"></i>
+              <span>Reference Documents</span>
+            </h3>
+            <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" id="btn-remove-all-docs" style="display: none;" title="Remove all uploaded documents">
+              Remove all
+            </button>
+          </div>
+          <div class="card-body">
+            <!-- Drop Zone -->
+            <div class="drop-zone mb-3" id="doc-drop-zone" tabindex="0" role="button" aria-label="Upload reference documents. Drag and drop files here or click to browse.">
+              <i class="bi bi-cloud-arrow-up fs-2 text-primary d-block mb-1"></i>
+              <span class="fw-semibold small d-block">Drop reference documents here</span>
+              <span class="text-muted extra-small d-block" style="font-size: 0.75rem;">or click to browse files</span>
+              <span class="badge bg-secondary-subtle text-secondary mt-2 extra-small">PDF, DOCX, TXT, MD, JSON, CSV</span>
+              <input type="file" id="doc-file-input" class="d-none" multiple accept=".pdf,.docx,.txt,.md,.markdown,.json,.csv">
+            </div>
+
+            <!-- Document List -->
+            <div id="doc-list-container"></div>
+
+            <!-- Empty State -->
+            <div id="doc-empty-state" class="text-center p-3 text-muted border rounded bg-body-tertiary small">
+              <i class="bi bi-file-earmark-text mb-1 d-block" style="font-size: 1.5rem;"></i>
+              Add reference material to give JEV the context for your questionnaire.
+            </div>
+          </div>
+        </div>
+
+        <!-- Privacy Card -->
+        <div class="card shadow-sm border border-success-subtle bg-success-subtle bg-opacity-10">
+          <div class="card-body p-3">
+            <div class="d-flex align-items-center gap-2 text-success fw-bold small mb-1">
+              <i class="bi bi-shield-lock-fill"></i>
+              <span>Private by design</span>
+            </div>
+            <p class="extra-small text-muted mb-2" style="font-size: 0.8rem;">
+              Files are processed locally in your browser. Extracted content is only sent when you explicitly ask JEV to evaluate the questionnaire. No backend, no cookies, no tracking.
+            </p>
+            <a href="PRIVACY.md" target="_blank" class="extra-small text-decoration-none text-success fw-semibold" style="font-size: 0.75rem;">
+              Read Privacy Details <i class="bi bi-arrow-right"></i>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- CENTER PANEL: Questionnaire Workbench -->
+      <section class="col-12 col-lg-5 panel-column" aria-labelledby="heading-workbench">
+        <h2 class="visually-hidden" id="heading-workbench">Questionnaire Workbench</h2>
+
+        <!-- Input Card -->
+        <div class="card shadow-sm border mb-3">
+          <div class="card-header bg-body-tertiary d-flex align-items-center justify-content-between py-2">
+            <h3 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+              <i class="bi bi-textarea-t text-primary"></i>
+              <span>Paste Questionnaire</span>
+            </h3>
+            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 extra-small" id="btn-load-sample" style="font-size: 0.75rem;">
+              <i class="bi bi-magic me-1"></i> Load sample
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="questionnaire-input" class="form-label small fw-semibold text-muted mb-1">Questions and answer choices</label>
+              <textarea class="form-control font-monospace" id="questionnaire-input" rows="8" placeholder="1. What is the capital of France?&#10;A. Rome&#10;B. Madrid&#10;C. Paris&#10;D. Berlin&#10;&#10;2. Which protocol is used for secure web traffic?&#10;A) FTP&#10;B) HTTPS&#10;C) SMTP&#10;D) DNS" spellcheck="false"></textarea>
+            </div>
+            <button type="button" class="btn btn-primary w-100" id="btn-parse-questions">
+              <i class="bi bi-cpu me-1"></i> Parse questions
+            </button>
+          </div>
+        </div>
+
+        <!-- Parsed Questions Workbench (Review & Edit) -->
+        <div id="questions-workbench" style="display: none;">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div id="questions-summary"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-add-question">
+              <i class="bi bi-plus me-1"></i> Add question
+            </button>
+          </div>
+
+          <!-- Questions List -->
+          <div id="questions-list"></div>
+
+          <!-- Action Bar: Ask JEV -->
+          <div class="card shadow-sm border border-primary-subtle bg-primary-subtle bg-opacity-10 p-3 mb-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <button type="button" class="btn btn-primary btn-lg fw-bold shadow-sm" id="btn-ask-jev">
+                  <i class="bi bi-stars me-1"></i> Ask JEV
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-lg ms-2" id="btn-cancel-jev" style="display: none;">
+                  Cancel
+                </button>
+              </div>
+              <div id="jev-status-container" style="display: none;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: Results -->
+      <section class="col-12 col-lg-4 panel-column" aria-labelledby="heading-results">
+        <h2 class="visually-hidden" id="heading-results">Evaluation Results</h2>
+        <div id="results-container"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-top py-3 mt-auto bg-body-tertiary">
+    <div class="container-fluid px-3 px-lg-4 d-flex flex-wrap align-items-center justify-content-between gap-2 small text-muted">
+      <div>
+        <strong>Questionator</strong> — Client-side multiple-choice evaluation with TypeSafe JEV.
+      </div>
+      <div class="d-flex gap-3">
+        <a href="PRIVACY.md" target="_blank" class="text-muted text-decoration-none">Privacy</a>
+        <a href="README.md" target="_blank" class="text-muted text-decoration-none">Documentation</a>
+        <a href="LICENSE" target="_blank" class="text-muted text-decoration-none">MIT License</a>
+        <a href="https://github.com/erseco/questionator" target="_blank" rel="noopener noreferrer" class="text-muted text-decoration-none">
+          <i class="bi bi-github"></i> GitHub
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- External Libraries from Pinned CDN with SRI -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js" integrity="sha384-/cXAMbzovUIKbBERjPmR3SnPTh8siWr5lsvFYj1Uq4XP0yaJUZJmsh0YXyGv5P0y" crossorigin="anonymous"></script>
+
+  <!-- Application Entry Point (ES Module) -->
+  <script type="module" src="./assets/js/app.js"></script>
+</body>
+</html>

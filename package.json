@@ -1,0 +1,19 @@
+{
+  "name": "questionator",
+  "version": "1.0.0",
+  "description": "Privacy-oriented client-side web application for answering multiple-choice questionnaires with TypeSafe JEV",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "questionator",
+    "typesafe",
+    "jev",
+    "quiz",
+    "client-side",
+    "privacy"
+  ],
+  "author": "Ernesto Serrano",
+  "license": "MIT"
+}
