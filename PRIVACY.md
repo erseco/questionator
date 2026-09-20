@@ -58,10 +58,21 @@ Questionator contains:
 To provide a modern interface and client-side extraction capabilities without a build step, static vendor libraries (Bootstrap 5, Bootstrap Icons, PDF.js, Mammoth.js) are loaded from pinned public CDNs (`cdn.jsdelivr.net`, `cdnjs.cloudflare.com`) with Subresource Integrity (SRI) hashes.
 
 * **No User Data to CDNs:** Your documents, questionnaire text, and API keys are **never** sent to these CDN providers.
-* **Content Security Policy (CSP):** The application enforces a strict Content Security Policy that explicitly restricts network connections (`connect-src`) to `'self'` and `https://api.typesafe.ai`. Network connections to any other domain are blocked by the browser.
+* **Content Security Policy (CSP):** The application enforces a strict Content Security Policy that explicitly restricts network connections (`connect-src`) to `'self'`, `https://api.typesafe.ai`, and `https://*.workers.dev`. Network connections to any other domain are blocked by the browser.
 
 ---
 
-## 6. Open Source and Verifiable
+## 6. Self-Hosted Cloudflare Worker Proxy (Optional)
+
+Because TypeSafe's API currently rejects browser preflight requests with `Disallowed CORS origin`, an optional self-hosted Cloudflare Worker proxy script is provided in [`scripts/typesafe-proxy-worker.js`](scripts/typesafe-proxy-worker.js).
+
+* **Zero Storage Guarantee:** The worker contains NO persistent storage, NO database bindings (KV, D1, R2), and NO caching layers. Nothing is saved to disk.
+* **Zero Logging Guarantee:** Observability and logging are strictly disabled (`[observability] enabled = false`). The script contains no `console.log` and records zero headers, tokens, request bodies, or responses.
+* **Token Protection:** The `Authorization` header is forwarded directly in-flight to TypeSafe and is never copied, stored, or inspected.
+* **Origin Restriction:** Only requests originating from `https://erseco.github.io` (and localhost for development) are accepted; all other origins are rejected with `403 Forbidden`.
+
+---
+
+## 7. Open Source and Verifiable
 
 Questionator is open-source software under the MIT License. You can inspect the complete source code, audit the network activity using your browser's Developer Tools (Network tab), or host your own copy locally or on GitHub Pages.

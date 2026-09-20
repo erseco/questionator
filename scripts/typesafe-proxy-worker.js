@@ -2,7 +2,25 @@
  * TypeSafe JEV CORS Proxy - Cloudflare Worker
  *
  * A lightweight, transparent reverse proxy to enable browser access to TypeSafe JEV System One.
- * Deploy this on your own Cloudflare Workers account.
+ *
+ * ==============================================================================
+ * PRIVACY & ZERO DATA COLLECTION GUARANTEES:
+ * 1. NO PERSISTENT STORAGE:
+ *    This worker uses NO KV namespaces, NO D1 databases, NO R2 buckets,
+ *    NO Durable Objects, and NO cache storage bindings. Nothing is saved to disk.
+ *
+ * 2. NO LOGGING OR TELEMETRY:
+ *    This worker does NOT log request contents, headers, tokens, or responses.
+ *    No console.log, no telemetry, no tracking pixels, no analytics.
+ *
+ * 3. NO TOKEN RETENTION OR INSPECTION:
+ *    The Authorization header (TypeSafe API key) is forwarded directly to
+ *    TypeSafe's official endpoint in-flight and is never inspected, copied, or stored.
+ *
+ * 4. STATELESS IN-MEMORY STREAMING:
+ *    Requests and responses pass through memory strictly for the duration of the
+ *    HTTP transaction and are immediately discarded by the V8 isolate.
+ * ==============================================================================
  *
  * Official Target: https://api.typesafe.ai/v1/systemone
  */
@@ -56,7 +74,7 @@ export default {
       });
     }
 
-    // Informational landing page for GET
+    // Informational landing page for GET with explicit privacy guarantees
     if (request.method === "GET") {
       return new Response(
         JSON.stringify({
@@ -64,6 +82,13 @@ export default {
           status: "ready",
           target: TARGET_ENDPOINT,
           allowed_origin: "https://erseco.github.io",
+          privacy: {
+            storage: "none",
+            logging: "none",
+            telemetry: "none",
+            token_collection: "none",
+            description: "Stateless pass-through proxy. No API keys, tokens, documents, questions, or responses are stored, logged, or collected."
+          },
           usage: "Send POST requests with Authorization: Bearer <key> and Content-Type: application/json."
         }, null, 2),
         {
@@ -102,7 +127,7 @@ export default {
     }
 
     try {
-      // Forward request headers
+      // Forward request headers directly without logging or storing
       const forwardHeaders = new Headers();
       const authHeader = request.headers.get("Authorization");
       if (authHeader) {
@@ -115,7 +140,7 @@ export default {
         forwardHeaders.set("X-Typesafe-Organization-ID", orgHeader);
       }
 
-      // Read JSON body
+      // Read request body in-memory and forward directly
       const body = await request.text();
 
       // Forward to official TypeSafe System One endpoint
