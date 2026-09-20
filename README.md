@@ -184,6 +184,25 @@ To activate GitHub Pages for your repository:
 
 ---
 
+## Questionator for Moodle (Userscript)
+
+For answering quizzes directly inside Moodle, a companion **Tampermonkey / Greasemonkey userscript** is included in [`userscript/questionator-moodle.user.js`](userscript/questionator-moodle.user.js).
+
+### Key Advantages:
+* **No CORS Proxy Required:** Tampermonkey executes network requests via `GM.xmlHttpRequest` from the extension's background context, allowing direct, unproxied connections to `https://api.typesafe.ai/v1/systemone` (`@connect api.typesafe.ai`).
+* **Moodle Attempt Integration:** Automatically activates on quiz attempt pages (`*/mod/quiz/attempt.php*`).
+* **Zero Theme Conflicts:** Renders an isolated floating toolbar using **Shadow DOM** to prevent CSS collisions with any Moodle theme.
+* **Persistent Context:** The reference context is saved in extension storage (`GM.setValue`) and persists automatically as you navigate across multiple pages of the same quiz.
+* **Targeted Context Compression:** Includes a **"Compress prompt"** button that generates a loss-minimizing compression prompt conditioned on the specific questions on the page, allowing you to compress large manuals in ChatGPT, Claude, or Gemini down to the 32k token limit.
+* **Visual Probability Badges:** Injects winning checkmarks (`✓ JEV · 94%`) and probability progress bars next to Moodle options, plus question confidence badges.
+* **Safe Operation:** Automatically selects the winning radio button but **never submits the quiz automatically**.
+
+### 1-Click Installation:
+1. Install [Tampermonkey](https://www.tampermonkey.net/) (or Violentmonkey / Greasemonkey).
+2. Click here to install: [**Install questionator-moodle.user.js**](https://raw.githubusercontent.com/erseco/questionator/main/userscript/questionator-moodle.user.js).
+
+---
+
 ## Project Structure
 
 ```text
@@ -218,6 +237,8 @@ questionator/
 │       └── utils.js            # HTML escaping, formatting, and clipboard
 ├── scripts/
 │   └── typesafe-proxy-worker.js # Self-hosted Cloudflare Worker CORS proxy
+├── userscript/
+│   └── questionator-moodle.user.js # Tampermonkey userscript for Moodle
 └── test/
     └── question-parser.test.js # Test suite for the questionnaire parser
 ```
