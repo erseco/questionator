@@ -112,6 +112,16 @@ Questionator communicates with TypeSafe's official endpoint:
 * **Questions:** Each multiple-choice question is structured as a typed `choice` question with `criteria` mapping option IDs (`A`, `B`, `C`, etc.) to option text.
 * **Batching:** All questions are submitted in a single request, allowing JEV to evaluate the questionnaire concurrently against the shared state.
 
+### Context Window & Token Limits
+
+TypeSafe's JEV System One enforces strict input limits:
+* **Reference State (`state`):** Maximum **32,000 tokens** (approximately **120,000 – 125,000 characters**).
+* **Total Request Limit:** Maximum **64,000 tokens** across state and all questions.
+
+> [!WARNING]
+> If you upload an entire textbook or extensive manual (e.g. 200+ pages / >125,000 characters), TypeSafe's API will reject the evaluation with an **HTTP 400 Bad Request** error.
+> **Best Practice:** Split large PDFs or manuals and upload only the specific chapter or section relevant to the questions you are evaluating.
+
 ### Getting a TypeSafe API Key
 To obtain an API key:
 1. Visit the [TypeSafe Console](https://console.typesafe.ai).

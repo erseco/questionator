@@ -325,7 +325,39 @@ function renderDocumentList() {
   if (elDocEmptyState) elDocEmptyState.style.display = 'none';
   if (elBtnRemoveAllDocs) elBtnRemoveAllDocs.style.display = 'inline-block';
 
-  let html = '<div class="d-flex flex-column gap-2">';
+  const totalChars = docs.reduce((sum, d) => sum + (d.characters || 0), 0);
+  const estimatedTokens = Math.round(totalChars / 3.8);
+  const maxTokens = 32000;
+  const percent = Math.min(100, Math.round((estimatedTokens / maxTokens) * 100));
+  const isExceeded = estimatedTokens > maxTokens;
+  const isWarning = estimatedTokens > maxTokens * 0.75;
+
+  let barClass = 'bg-success';
+  if (isExceeded) barClass = 'bg-danger';
+  else if (isWarning) barClass = 'bg-warning';
+
+  let html = `
+    <!-- Context Budget Bar -->
+    <div class="p-2 mb-3 bg-body-tertiary rounded border small">
+      <div class="d-flex justify-content-between align-items-center mb-1 extra-small">
+        <span class="fw-semibold text-muted">Context Budget:</span>
+        <span class="font-monospace ${isExceeded ? 'text-danger fw-bold' : (isWarning ? 'text-warning fw-bold' : 'text-muted')}">
+          ${formatNumber(totalChars)} chars (~${formatNumber(estimatedTokens)} / 32,000 tokens)
+        </span>
+      </div>
+      <div class="progress" style="height: 6px;" role="progressbar" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100" aria-label="Context usage">
+        <div class="progress-bar ${barClass}" style="width: ${percent}%"></div>
+      </div>
+      ${isExceeded ? `
+        <div class="text-danger extra-small mt-1 fw-semibold d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Exceeds JEV limit! TypeSafe will return HTTP 400. Please upload only relevant chapters.
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="d-flex flex-column gap-2">
+  `;
   for (const doc of docs) {
     const isReady = doc.status === 'ready';
     const isExtracting = doc.status === 'extracting';
