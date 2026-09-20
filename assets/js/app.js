@@ -691,6 +691,18 @@ async function handleAskJev() {
     return;
   }
 
+  // Warn if reference documents exceed TypeSafe's state limit (32,000 tokens / ~125,000 chars)
+  const totalChars = state.documents.reduce((sum, d) => sum + (d.characters || 0), 0);
+  if (totalChars > 125000) {
+    showAlert(
+      `Notice: Reference documents total ${formatNumber(totalChars)} chars (~${formatNumber(Math.round(totalChars / 3.8))} tokens). ` +
+      `TypeSafe JEV limits state to 32,000 tokens (~125,000 chars). ` +
+      `If TypeSafe rejects with HTTP 400, consider uploading only the specific chapter needed.`,
+      'warning',
+      10000
+    );
+  }
+
   // Setup UI for loading
   setEvaluatingUI(true, `Evaluating ${validQuestions.length} ${validQuestions.length === 1 ? 'question' : 'questions'} with JEV…`);
   clearResults();

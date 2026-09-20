@@ -1,11 +1,8 @@
-/**
- * Questionator - Document Processing Module
- * Fully client-side extraction for PDF, DOCX, TXT, MD, JSON, CSV files.
- */
-
 import { extractPdfText } from './pdf.js';
+import { formatNumber } from './utils.js';
 
 const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.md', '.markdown', '.json', '.csv'];
+const MAX_RECOMMENDED_STATE_CHARS = 125000; // ~32,000 tokens limit for TypeSafe JEV state
 
 /**
  * Checks if a file has a supported extension.
@@ -62,7 +59,8 @@ export async function extractFileContent(file, onProgress) {
 
     return {
       content: result.text,
-      characters: result.characters
+      characters: result.characters,
+      warning: checkSizeWarning(result.characters)
     };
   }
 
@@ -78,7 +76,8 @@ export async function extractFileContent(file, onProgress) {
 
     return {
       content: text,
-      characters: text.length
+      characters: text.length,
+      warning: checkSizeWarning(text.length)
     };
   }
 
@@ -91,11 +90,19 @@ export async function extractFileContent(file, onProgress) {
 
     return {
       content: trimmed,
-      characters: trimmed.length
+      characters: trimmed.length,
+      warning: checkSizeWarning(trimmed.length)
     };
   }
 
   throw new Error(`Unsupported file type: "${file.name}". Supported formats: PDF, DOCX, TXT, MD, JSON, CSV.`);
+}
+
+function checkSizeWarning(chars) {
+  if (chars > MAX_RECOMMENDED_STATE_CHARS) {
+    return `Large document (${formatNumber(chars)} chars, ~${formatNumber(Math.round(chars / 3.8))} tokens). TypeSafe JEV limits state to 32,000 tokens (~125,000 chars). If JEV rejects with HTTP 400, consider uploading only the relevant chapter or section.`;
+  }
+  return undefined;
 }
 
 /**

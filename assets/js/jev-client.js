@@ -108,22 +108,35 @@ export async function evaluateQuestionsWithJev({
         break;
       }
 
+      // Extract error details from API response body
+      let errorDetails = '';
+      try {
+        const errJson = await response.json();
+        errorDetails = errJson.message || errJson.error || (typeof errJson === 'string' ? errJson : JSON.stringify(errJson));
+      } catch {
+        try {
+          errorDetails = await response.text();
+        } catch {
+          // ignore
+        }
+      }
+
       // Handle specific HTTP status codes
+      if (response.status === 400) {
+        throw new JevError(
+          `TypeSafe API rejected request (HTTP 400): ${errorDetails || 'Bad request. The reference document or questions may exceed token limits (max 32,000 tokens for state).'}.`,
+          { name: 'JevBadRequestError', status: 400, details: errorDetails }
+        );
+      }
+
       if (response.status === 401) {
         throw new JevError(
-          'Authentication failed (HTTP 401): The provided TypeSafe API key is invalid or unauthorized.',
-          { name: 'JevAuthError', status: 401 }
+          `Authentication failed (HTTP 401): ${errorDetails || 'The provided TypeSafe API key is invalid or unauthorized.'}`,
+          { name: 'JevAuthError', status: 401, details: errorDetails }
         );
       }
 
       if (response.status === 422) {
-        let errorDetails = '';
-        try {
-          const errJson = await response.json();
-          errorDetails = errJson.message || errJson.error || JSON.stringify(errJson);
-        } catch {
-          // ignore
-        }
         throw new JevError(
           `Request validation failed (HTTP 422): ${errorDetails || 'The questionnaire payload was rejected by JEV.'}`,
           { name: 'JevValidationError', status: 422, details: errorDetails }
@@ -148,19 +161,20 @@ export async function evaluateQuestionsWithJev({
         }
 
         const msg = response.status === 429
-          ? 'TypeSafe API rate limit exceeded (HTTP 429). Please wait a moment before trying again.'
-          : `TypeSafe API service unavailable or overloaded (HTTP ${response.status}). Please try again shortly.`;
+          ? `TypeSafe API rate limit exceeded (HTTP 429). ${errorDetails ? `Details: ${errorDetails}` : 'Please wait a moment before trying again.'}`
+          : `TypeSafe API service unavailable or overloaded (HTTP ${response.status}). ${errorDetails ? `Details: ${errorDetails}` : 'Please try again shortly.'}`;
 
         throw new JevError(msg, {
           name: response.status === 429 ? 'JevRateLimitError' : 'JevServerError',
-          status: response.status
+          status: response.status,
+          details: errorDetails
         });
       }
 
       // Other unexpected HTTP errors
       throw new JevError(
-        `TypeSafe API returned HTTP error ${response.status} (${response.statusText || 'Unknown'}).`,
-        { status: response.status }
+        `TypeSafe API returned HTTP error ${response.status} (${response.statusText || 'Unknown'}): ${errorDetails || 'No details provided.'}`,
+        { status: response.status, details: errorDetails }
       );
     } catch (err) {
       // If user aborted, rethrow directly
