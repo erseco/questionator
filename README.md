@@ -7,7 +7,9 @@
 
 **Live Application:** [https://erseco.github.io/questionator/](https://erseco.github.io/questionator/)
 
-![Questionator Screenshot](.github/screenshot.png)
+<p align="center">
+  <img src=".github/logo.png" alt="Questionator Logo" width="220">
+</p>
 
 ---
 
@@ -177,19 +179,23 @@ To activate GitHub Pages for your repository:
 ```text
 questionator/
 ├── index.html                  # Main application HTML with strict CSP
-├── favicon.svg                 # Application favicon
+├── favicon.png                 # Application favicon
+├── favicon.svg                 # SVG favicon fallback
 ├── package.json                # Development test script configuration
 ├── README.md                   # Project documentation
 ├── PRIVACY.md                  # Privacy policy and security disclosure
 ├── AGENTS.md                   # Guidelines for AI coding agents
 ├── LICENSE                     # MIT License
+├── wrangler.toml               # Cloudflare Worker configuration
 ├── .github/
-│   ├── screenshot.png          # Application screenshot
+│   ├── logo.png                # Application logo
 │   └── workflows/
 │       └── pages.yml           # GitHub Actions workflow for GitHub Pages
 ├── assets/
 │   ├── css/
 │   │   └── app.css             # Application CSS complementing Bootstrap 5
+│   ├── img/
+│   │   └── logo.png            # Application logo
 │   └── js/
 │       ├── app.js              # Main application controller
 │       ├── state.js            # Central reactive application state
