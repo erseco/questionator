@@ -120,7 +120,11 @@ TypeSafe's JEV System One enforces strict input limits:
 
 > [!WARNING]
 > If you upload an entire textbook or extensive manual (e.g. 200+ pages / >125,000 characters), TypeSafe's API will reject the evaluation with an **HTTP 400 Bad Request** error.
-> **Best Practice:** Split large PDFs or manuals and upload only the specific chapter or section relevant to the questions you are evaluating.
+> 
+> **Handling Large Documents:**
+> 1. **Upload specific chapters:** Split large PDFs or manuals and upload only the relevant section.
+> 2. **Direct Text Pasting:** Use the **Paste Text** tab to paste specific excerpts, notes, or articles directly.
+> 3. **AI Context Compression:** Click the **"Copy AI context prompt"** button. Paste this prompt into **ChatGPT**, **Claude**, or **Gemini** alongside your uploaded document. The AI will synthesize a loss-minimizing reference context of under 100,000 characters (~25,000 tokens) that you can paste directly into Questionator.
 
 ### Getting a TypeSafe API Key
 To obtain an API key:

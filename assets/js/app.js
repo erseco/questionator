@@ -21,6 +21,29 @@ import {
 } from './storage.js';
 import { escapeHtml, formatNumber, formatBytes } from './utils.js';
 
+// Generic AI context compression prompt for large documents
+export const GENERIC_AI_COMPRESSION_PROMPT = `You are a loss-minimizing knowledge extractor and context compressor.
+
+Task:
+Extract and synthesize the essential factual reference context from the attached or provided document into a comprehensive, highly dense reference text. The resulting text MUST NOT exceed 100,000 characters (approximately 25,000 tokens) so it can serve as reference context for automated multiple-choice question answering (TypeSafe JEV).
+
+Preservation Priorities:
+1. Language: Maintain the exact same language as the source document (e.g. if the document is in Spanish, output in Spanish; do not translate).
+2. Definitions, technical terminology, acronyms, and specialized concepts.
+3. Exact numerical values, thresholds, formulas, ranges, units, and measurements.
+4. Rules, policies, safety protocols, standards, and step-by-step procedures.
+5. Classifications, taxonomies, categories, and structured lists.
+6. Conditions, constraints, prerequisites, exceptions, and negations.
+7. Comparisons, distinctions, causes, and consequences.
+8. Specific names, dates, historical facts, and key references.
+
+Strict Instructions:
+- Maintain complete factual fidelity: do not invent, extrapolate, or hallucinate facts not found in the source.
+- Eliminate all conversational fluff, introductions, author bios, repetitive anecdotes, and boilerplate.
+- Organize logically using clear topic headers and concise bullet points.
+- The total length MUST be under 100,000 characters (~25,000 tokens).
+- Output ONLY the synthesized reference text. Do not include any greeting, preamble, explanations, or code fences.`;
+
 // DOM Elements
 let elApiKeyInput;
 let elToggleApiKeyBtn;
@@ -35,6 +58,15 @@ let elDocFileInput;
 let elDocListContainer;
 let elBtnRemoveAllDocs;
 let elDocEmptyState;
+
+let elContextPasteInput;
+let elContextPasteCounter;
+let elBtnAddPastedContext;
+let elBtnCopyAiPrompt;
+let elBtnViewAiPrompt;
+let elAiPromptTextarea;
+let elBtnModalCopyPrompt;
+let elModalPromptCopyStatus;
 
 let elQuestionnaireInput;
 let elBtnParseQuestions;
@@ -60,6 +92,8 @@ export function initApp() {
   setupApiKeyEvents();
   setupEndpointEvents();
   setupDocumentEvents();
+  setupContextPasteEvents();
+  setupAiPromptEvents();
   setupQuestionnaireEvents();
   setupEvaluationEvents();
   setupAlertDismiss();
@@ -84,6 +118,15 @@ function cacheDOMElements() {
   elDocListContainer = document.getElementById('doc-list-container');
   elBtnRemoveAllDocs = document.getElementById('btn-remove-all-docs');
   elDocEmptyState = document.getElementById('doc-empty-state');
+
+  elContextPasteInput = document.getElementById('context-paste-input');
+  elContextPasteCounter = document.getElementById('context-paste-counter');
+  elBtnAddPastedContext = document.getElementById('btn-add-pasted-context');
+  elBtnCopyAiPrompt = document.getElementById('btn-copy-ai-prompt');
+  elBtnViewAiPrompt = document.getElementById('btn-view-ai-prompt');
+  elAiPromptTextarea = document.getElementById('ai-prompt-textarea');
+  elBtnModalCopyPrompt = document.getElementById('btn-modal-copy-prompt');
+  elModalPromptCopyStatus = document.getElementById('modal-prompt-copy-status');
 
   elQuestionnaireInput = document.getElementById('questionnaire-input');
   elBtnParseQuestions = document.getElementById('btn-parse-questions');
@@ -265,6 +308,119 @@ function setupDocumentEvents() {
   }
 }
 
+/**
+ * Context Text Pasting Management
+ */
+function setupContextPasteEvents() {
+  if (elContextPasteInput) {
+    elContextPasteInput.addEventListener('input', updatePasteCounter);
+  }
+
+  if (elBtnAddPastedContext) {
+    elBtnAddPastedContext.addEventListener('click', () => {
+      if (!elContextPasteInput) return;
+      const text = elContextPasteInput.value.trim();
+      if (!text) return;
+      addPastedContext(text);
+      elContextPasteInput.value = '';
+      updatePasteCounter();
+    });
+  }
+}
+
+function updatePasteCounter() {
+  if (!elContextPasteInput || !elContextPasteCounter) return;
+  const chars = elContextPasteInput.value.length;
+  const tokens = Math.round(chars / 3.8);
+  elContextPasteCounter.textContent = `${formatNumber(chars)} chars · ~${formatNumber(tokens)} tokens`;
+  if (elBtnAddPastedContext) {
+    elBtnAddPastedContext.disabled = chars === 0;
+  }
+}
+
+function addPastedContext(text) {
+  if (!text || !text.trim()) return;
+  const trimmed = text.trim();
+  const pasteCount = state.documents.filter(d => d.type === 'Text' && d.name.startsWith('Pasted Context')).length + 1;
+  const docId = generateDocId();
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const docName = `Pasted Context #${pasteCount} (${timeStr})`;
+
+  const docEntry = {
+    id: docId,
+    name: docName,
+    type: 'Text',
+    size: new Blob([trimmed]).size,
+    characters: trimmed.length,
+    content: trimmed,
+    status: trimmed.length > 125000 ? 'warning' : 'ready',
+    statusMessage: trimmed.length > 125000 ? 'Large text' : 'Ready'
+  };
+
+  state.documents.push(docEntry);
+  renderDocumentList();
+  showAlert(`Added "${docName}" (${formatNumber(trimmed.length)} chars) to reference context.`, 'success');
+}
+
+/**
+ * AI Context Compression Prompt Management
+ */
+function setupAiPromptEvents() {
+  if (elAiPromptTextarea) {
+    elAiPromptTextarea.value = GENERIC_AI_COMPRESSION_PROMPT;
+  }
+
+  if (elBtnCopyAiPrompt) {
+    elBtnCopyAiPrompt.addEventListener('click', () => {
+      copyAiPrompt(elBtnCopyAiPrompt);
+    });
+  }
+
+  if (elBtnModalCopyPrompt) {
+    elBtnModalCopyPrompt.addEventListener('click', () => {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(GENERIC_AI_COMPRESSION_PROMPT).then(() => {
+          if (elModalPromptCopyStatus) {
+            elModalPromptCopyStatus.textContent = '✓ Copied to clipboard!';
+            setTimeout(() => {
+              if (elModalPromptCopyStatus) elModalPromptCopyStatus.textContent = '';
+            }, 3000);
+          }
+        }).catch(() => {
+          showAlert('Failed to copy prompt to clipboard. Please copy manually from the text box.', 'warning');
+        });
+      } else {
+        showAlert('Clipboard API not available. Please copy manually from the text box.', 'warning');
+      }
+    });
+  }
+}
+
+export function copyAiPrompt(buttonEl) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(GENERIC_AI_COMPRESSION_PROMPT).then(() => {
+      if (buttonEl) {
+        const originalHtml = buttonEl.innerHTML;
+        buttonEl.innerHTML = '<i class="bi bi-check2 me-1"></i> Copied!';
+        buttonEl.classList.add('btn-success');
+        buttonEl.classList.remove('btn-outline-primary', 'btn-outline-danger');
+        setTimeout(() => {
+          buttonEl.innerHTML = originalHtml;
+          buttonEl.classList.remove('btn-success');
+          buttonEl.classList.add('btn-outline-primary');
+        }, 2000);
+      }
+      showAlert('AI compression prompt copied to clipboard! Paste it into ChatGPT, Claude, or Gemini alongside your document.', 'success');
+    }).catch(() => {
+      showAlert('Could not copy to clipboard. Use the "View prompt" button to copy manually.', 'warning');
+    });
+  } else {
+    if (elBtnViewAiPrompt) {
+      elBtnViewAiPrompt.click();
+    }
+  }
+}
+
 async function handleFilesSelected(files) {
   for (const file of files) {
     if (!isSupportedFile(file)) {
@@ -349,9 +505,14 @@ function renderDocumentList() {
         <div class="progress-bar ${barClass}" style="width: ${percent}%"></div>
       </div>
       ${isExceeded ? `
-        <div class="text-danger extra-small mt-1 fw-semibold d-flex align-items-center gap-1" style="font-size: 0.72rem;">
-          <i class="bi bi-exclamation-triangle-fill"></i>
-          Exceeds JEV limit! TypeSafe will return HTTP 400. Please upload only relevant chapters.
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mt-1">
+          <div class="text-danger extra-small fw-semibold d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Exceeds JEV limit! TypeSafe will return HTTP 400.
+          </div>
+          <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 extra-small btn-copy-ai-prompt-exceeded" style="font-size: 0.7rem;" title="Copy prompt for ChatGPT/Claude/Gemini to compress your document">
+            <i class="bi bi-clipboard-check me-1"></i> Copy AI Prompt
+          </button>
         </div>
       ` : ''}
     </div>
@@ -403,6 +564,14 @@ function renderDocumentList() {
       const id = btn.getAttribute('data-id');
       state.documents = state.documents.filter(d => d.id !== id);
       renderDocumentList();
+    });
+  });
+
+  // Bind copy AI prompt buttons when exceeded
+  const copyPromptExceededBtns = elDocListContainer.querySelectorAll('.btn-copy-ai-prompt-exceeded');
+  copyPromptExceededBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      copyAiPrompt(btn);
     });
   });
 }
@@ -708,6 +877,13 @@ function setupEvaluationEvents() {
 }
 
 async function handleAskJev() {
+  // If the user entered text in the paste context textarea but didn't click "Add to context", auto-add it
+  if (elContextPasteInput && elContextPasteInput.value.trim().length > 0) {
+    addPastedContext(elContextPasteInput.value.trim());
+    elContextPasteInput.value = '';
+    updatePasteCounter();
+  }
+
   // Check API key
   const apiKey = (state.apiKey || (elApiKeyInput ? elApiKeyInput.value : '')).trim();
   if (!apiKey) {
